@@ -34,3 +34,7 @@ watch_cmd() {
     inotifywait -e modify -r src include meson.build
 }
 ```
+
+# Known issues
+
+- `watch_cmd` returns false (return code != 0): this will break the while loop when watching file changes. Therefore, `watch_cmd` should return true after detecting file changes.
