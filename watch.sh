@@ -1,12 +1,28 @@
 #!/usr/bin/bash
 
+color_print() {
+    echo -e "\033[$1m$2\033[0m"
+}
+
+red() {
+    color_print "1;31" "$1"
+}
+
+green() {
+    color_print "1;32" "$1"
+}
+
+yellow() {
+    color_print "1;33" "$1"
+}
+
 cfg_err=
 if [[ -f watch.cfg.sh ]]; then
     source watch.cfg.sh
 
     check_cmd() {
         if ! command -v "$1" &>/dev/null; then
-            echo -e "\033[1;31m\`$1\` was not configured.\033[0m"
+            red "\`$1\` was not configured."
             cfg_err=1
         fi
     }
@@ -15,7 +31,7 @@ if [[ -f watch.cfg.sh ]]; then
     check_cmd run_cmd
     check_cmd watch_cmd
 else
-    echo -e "\033[1;31m\`watch.cfg.sh\` file was not found.\033[0m"
+    red "\`watch.cfg.sh\` file was not found."
     cfg_err=1
 fi
 
@@ -27,17 +43,17 @@ watch_pid=`mktemp -t watch_pid.XXX`
 run_pid=`mktemp -t run_pid.XXX`
 
 build() {
-    echo -e "\033[1;32mBuilding...\033[0m"
+    green "Building..."
     build_cmd
     ret=$?
-    echo -e "\033[1;32mBuild completed.\033[0m"
+    green "Build completed."
     return $ret
 }
 
 run() {
     kill_pid $run_pid
-    echo -e "\033[1;33mRunning program...\033[0m"
-    (run_cmd; echo -e "\033[1;33mProgram exited with code $?.\033[0m") &
+    yellow "Running program..."
+    (run_cmd; yellow "Program exited with code $?.") &
     echo $! > $run_pid
 }
 
@@ -68,8 +84,8 @@ kill_watch() {
 }
 
 watch() {
-    echo -e "\033[1;33mWatching file change...\033[0m"
-    while watch_cmd 2>/dev/null; do
+    yellow "Watching file change..."
+    while watch_cmd; do
         build_and_run
     done
 }
