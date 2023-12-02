@@ -17,28 +17,71 @@ yellow() {
   color_print "1;33" "$1"
 }
 
-cfg_err=
+check_cmd() {
+  command -v "$1" &>/dev/null
+}
+
+required_cmd() {
+  if ! check_cmd "$1"; then
+    red "\`$1\` was not configured."
+    cfg_err=1
+  fi
+}
+
+watch_cmd() {
+  inotifywait -e modify,move_self -r . 2>/dev/null
+}
+
+usage() {
+  cat <<END
+Usage: $0 [options]
+
+Options:
+  -h                  : Show this help message
+  -b build_script     : Script to run when \`watch_script\` detects new changes
+  -r run_script       : Script to run when the build is completed
+  -w watch_script     : Script to detect file changes
+
+END
+
+  exit "$1"
+}
+
 if [[ -f watch.cfg.sh ]]; then
   source watch.cfg.sh
   if [[ "$?" -ne "0" ]]; then
     red "Error when loading config."
-    cfg_err=1
-  else
-    check_cmd() {
-      if ! command -v "$1" &>/dev/null; then
-        red "\`$1\` was not configured."
-        cfg_err=1
-      fi
-    }
-
-    check_cmd build_cmd
-    check_cmd run_cmd
-    check_cmd watch_cmd
+    exit 1
   fi
-else
-  red "\`watch.cfg.sh\` file was not found."
-  cfg_err=1
 fi
+
+while getopts 'b:r:w:h' opt; do
+  case "${opt}" in
+    b)
+      build_cmd_="$OPTARG"
+      build_cmd() {
+        bash -c "$build_cmd_"
+      }
+      ;;
+    r)
+      run_cmd_="$OPTARG"
+      run_cmd() {
+        bash -c "$run_cmd_"
+      }
+      ;;
+    w)
+      watch_cmd_="$OPTARG"
+      watch_cmd() {
+        bash -c "$watch_cmd_"
+      }
+      ;;
+    h) usage 0;;
+    *) usage 1;;
+  esac
+done
+
+required_cmd run_cmd
+required_cmd watch_cmd
 
 if [[ -n "$cfg_err" ]]; then
   exit 1
@@ -48,6 +91,10 @@ watch_pid=`mktemp -t watch_pid.XXX`
 run_pid=`mktemp -t run_pid.XXX`
 
 build() {
+  if ! check_cmd "build_cmd"; then
+    return 0
+  fi
+
   green "Building..."
   build_cmd
   ret=$?
